@@ -31,6 +31,8 @@ pub struct Executor<O, S, I> {
     ctrlc: bool,
     /// Indicates whether to time execution or not
     timer: bool,
+    /// Number of iterations to run before terminating
+    iterations: Option<usize>,
 }
 
 impl<O, S, I> Executor<O, S, I>
@@ -69,6 +71,7 @@ where
             checkpoint: None,
             ctrlc: true,
             timer: true,
+            iterations: None,
         }
     }
 
@@ -190,6 +193,8 @@ where
             state
         };
 
+        let mut iterations = 0;
+
         while running.load(Ordering::SeqCst) {
             // check first if it has already terminated
             // This should probably be solved better.
@@ -206,6 +211,14 @@ where
             // Now check once more if the algorithm has terminated. If yes, then break.
             if state.terminated() {
                 break;
+            }
+
+            // have we reached the executor's maximum number of iterations?
+            if let Some(max_iters) = self.iterations {
+                if iterations >= max_iters {
+                    break;
+                }
+                iterations += 1;
             }
 
             // Start time measurement
@@ -389,6 +402,12 @@ where
     #[must_use]
     pub fn timer(mut self, timer: bool) -> Self {
         self.timer = timer;
+        self
+    }
+
+    /// Sets the maximum number of iterations before terminating.
+    pub fn iterations(mut self, iterations: usize) -> Self {
+        self.iterations = Some(iterations);
         self
     }
 }
